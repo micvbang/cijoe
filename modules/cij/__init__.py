@@ -52,43 +52,48 @@ def get_time_stamp():
     return ""
 
 
-def info(txt):
+def _flush(fd):
+    if callable(getattr(fd, 'flush', None)):
+        fd.flush()
+
+
+def info(txt, fd=sys.stdout):
     """Print, emphasized 'neutral', the given 'txt' message"""
 
     print("%s# %s%s%s" % (PR_EMPH_CC, get_time_stamp(), txt, PR_NC))
-    sys.stdout.flush()
+    _flush(fd)
 
 
-def good(txt):
+def good(txt, fd=sys.stdout):
     """Print, emphasized 'good', the given 'txt' message"""
 
-    print("%s# %s%s%s" % (PR_GOOD_CC, get_time_stamp(), txt, PR_NC))
-    sys.stdout.flush()
+    print("%s# %s%s%s" % (PR_GOOD_CC, get_time_stamp(), txt, PR_NC), file=fd)
+    _flush(fd)
 
 
-def warn(txt):
+def warn(txt, fd=sys.stdout):
     """Print, emphasized 'warning', the given 'txt' message"""
 
-    print("%s# %s%s%s" % (PR_WARN_CC, get_time_stamp(), txt, PR_NC))
-    sys.stdout.flush()
+    print("%s# %s%s%s" % (PR_WARN_CC, get_time_stamp(), txt, PR_NC), file=fd)
+    _flush(fd)
 
 
-def err(txt):
+def err(txt, fd=sys.stdout):
     """Print, emphasized 'error', the given 'txt' message"""
 
-    print("%s# %s%s%s" % (PR_ERR_CC, get_time_stamp(), txt, PR_NC))
-    sys.stdout.flush()
+    print("%s# %s%s%s" % (PR_ERR_CC, get_time_stamp(), txt, PR_NC), file=fd)
+    _flush(fd)
 
 
-def emph(txt, rval=None):
+def emph(txt, rval=None, fd=sys.stdout):
     """Print, emphasized based on rval"""
 
     if rval is None:    # rval is not specified, use 'neutral'
-        info(txt)
+        info(txt, fd=fd)
     elif rval == 0:     # rval is 0, by convention, this is 'good'
-        good(txt)
+        good(txt, fd=fd)
     else:               # any other value, considered 'bad'
-        err(txt)
+        err(txt, fd=fd)
 
 def paths_from_env(prefix=None, names=None):
     """Construct dict of paths from environment variables'"""

@@ -1,0 +1,12 @@
+descr: Test the wonderful write_zeroes implementation
+descr_long: |
+  Well, verify that write_zeroes outputs all of the zeroes we expect it to. Nothing more. Nothing less.
+  That's it. Simple.
+
+testsuites:
+  - name: write_zeroes
+    testcases:
+      - fname: write_zeroes.sh
+        hooks: [wallc]
+        perf_req:
+          wallc: 1.1

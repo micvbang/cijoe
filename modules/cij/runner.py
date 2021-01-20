@@ -8,6 +8,8 @@ import shutil
 import copy
 import time
 import os
+import json
+import glob
 import yaml
 import cij.test
 import cij
@@ -77,6 +79,7 @@ TESTCASE = {
     "status": "UNKN",
     "rcode": None,
     "wallc": None,
+    "perf_req": {},
 }
 
 TRUN = {
@@ -354,7 +357,7 @@ def trun_emph(trun):
         cij.emph("}")
 
 
-def tcase_setup(trun, parent, tcase_fname):
+def tcase_setup(trun, parent, declr):
     """
     Create and initialize a testcase
     """
@@ -362,18 +365,21 @@ def tcase_setup(trun, parent, tcase_fname):
 
     case = copy.deepcopy(TESTCASE)
 
-    case["fname"] = tcase_fname
+    case["fname"] = declr.get("fname")
     case["fpath_orig"] = os.sep.join([trun["conf"]["TESTCASES"], case["fname"]])
 
     if not os.path.exists(case["fpath_orig"]):
         cij.err('rnr:tcase_setup: !case["fpath_orig"]: %r' % case["fpath_orig"])
         return None
 
+    case["perf_req"] = declr.get("perf_req", case["perf_req"])
+
     case["name"] = os.path.splitext(case["fname"])[0]
     case["ident"] = "/".join([parent["ident"], case["fname"]])
 
     case["res_root"] = os.sep.join([parent["res_root"], case["fname"]])
     case["aux_root"] = os.sep.join([case["res_root"], "_aux"])
+    case["plog_fpath"] = os.sep.join([case["res_root"], "perf.log"])
     case["log_fpath"] = os.sep.join([case["res_root"], "run.log"])
 
     case["fpath"] = os.sep.join([case["res_root"], case["fname"]])
@@ -386,10 +392,10 @@ def tcase_setup(trun, parent, tcase_fname):
     shutil.copyfile(case["fpath_orig"], case["fpath"])  # Copy testcase
 
     # Initialize hooks
-    case["hooks"] = hooks_setup(trun, case, parent.get("hooks_pr_tcase"))
+    hooks = parent.get("hooks_pr_tcase") + declr.get("hooks", [])
+    case["hooks"] = hooks_setup(trun, case, hooks)
 
     return case
-
 
 def tsuite_exit(trun, tsuite):
     """Triggers when exiting the given testsuite"""
@@ -461,28 +467,11 @@ def tsuite_setup(trun, declr, enum):
     suite["fname"] = "%s.suite" % suite["name"]
     suite["fpath"] = os.sep.join([trun["conf"]["TESTSUITES"], suite["fname"]])
 
-    #
-    # Load testcases from .suite file OR from declaration
-    #
-    tcase_fpaths = []                               # Load testcase fpaths
-    if os.path.exists(suite["fpath"]):              # From suite-file
-        suite_lines = (
-            l.strip() for l in open(suite["fpath"]).read().splitlines()
-        )
-        tcase_fpaths.extend(
-            (l for l in suite_lines if len(l) > 1 and l[0] != "#")
-        )
-    else:                                           # From declaration
-        tcase_fpaths.extend(declr.get("testcases", []))
+    # NOTE: currently only handles expanded `testcases` inlined in .plan files.
+    # I.e. does not handle .suite files!
 
-    # NOTE: fix duplicates; allow them
-    # NOTE: Currently hot-fixed here
-    if len(set(tcase_fpaths)) != len(tcase_fpaths):
-        cij.err("rnr:suite: failed: duplicate tcase in suite not supported")
-        return None
-
-    for tcase_fname in tcase_fpaths:                # Setup testcases
-        tcase = tcase_setup(trun, suite, tcase_fname)
+    for tcase_declr in declr.get("testcases", []):                # Setup testcases
+        tcase = tcase_setup(trun, suite, tcase_declr)
         if not tcase:
             cij.err("rnr:suite: failed: tcase_setup")
             return None
@@ -490,6 +479,41 @@ def tsuite_setup(trun, declr, enum):
         suite["testcases"].append(tcase)
 
     return suite
+
+
+def tcase_check_perf(tcase):
+    """
+    Read performance measurement and check against requirements
+    """
+    measurements = {}
+    for fpath in glob.glob(os.sep.join([tcase["aux_root"], "*perf.json"])):
+        with open(fpath, 'r') as f:
+            measurements.update(json.load(f))
+
+    err = 0
+    with open(tcase["plog_fpath"], "a") as log:
+        for key, req in tcase["perf_req"].items():
+            val = measurements.get(key, None)
+            if not val:
+                cij.err('%s not measured. Verify that the expected hook is '
+                        'registered and outputting the value.' % key,
+                        fd=log)
+                err += 1
+                continue
+
+            # TODO: this check should be more complex than just `>`, e.g. check
+            # val against a range "val in [0;500["
+            if val > req:
+                cij.err("%s: %.3f <= %.3f FAILED!" % (key, val, req), fd=log)
+                err += 1
+                continue
+
+            cij.good("%s: %.3f <= %.3f passed!" % (key, val, req), fd=log)
+    if err:
+        return 1
+
+    return 0
+
 
 
 def tcase_exit(trun, tsuite, tcase):
@@ -654,6 +678,7 @@ def main(conf):
                 if not tc_err:
                     tc_err += script_run(trun, tcase)
                     tc_err += tcase_exit(trun, tsuite, tcase)
+                    tc_err += tcase_check_perf(tcase)
 
                 tcase["status"] = "FAIL" if tc_err else "PASS"
                 trun["progress"]["UNKN"] -= 1

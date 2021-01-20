@@ -100,6 +100,7 @@ def runlogs_to_html(run_root):
     hook_enter = []
     hook_exit = []
     tcase = []
+    perf_req = []
     for fpath in glob.glob(os.sep.join([run_root, "*.log"])):
         if "exit" in fpath:
             hook_exit.append(fpath)
@@ -109,10 +110,14 @@ def runlogs_to_html(run_root):
             hook_enter.append(fpath)
             continue
 
+        if "plog_fpath" in fpath:
+            perf_req.append(fpath)
+            continue
+
         tcase.append(fpath)
 
     content = ""
-    for fpath in hook_enter + tcase + hook_exit:
+    for fpath in hook_enter + tcase + hook_exit + perf_req:
         content += "# BEGIN: run-log from log_fpath: %s\n" % fpath
         content += open(fpath, "r").read()
         content += "# END: run-log from log_fpath: %s\n\n" % fpath
