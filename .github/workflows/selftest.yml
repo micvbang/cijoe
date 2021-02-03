@@ -45,8 +45,16 @@ jobs:
       run: |
         make install-system
 
-    - name: Test
+    - name: Test Linux/OSX
+      if: ${{ !contains(matrix.os, 'windows') }}
       run: |
+        make selftest
+
+    - name: Test Windows
+      if: ${{ contains(matrix.os, 'windows') }}
+      run: |
+        ln -s "$pythonLocation/python" "$pythonLocation/python3"  # use python3 shebangs
+        export PATH=$(cygpath -u "$pythonLocation/bin"):$PATH
         make selftest
 
     - name: result-log-dump on error
