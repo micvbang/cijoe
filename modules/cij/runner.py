@@ -268,7 +268,7 @@ def script_run(trun, script: Runnable):
 
         bgn = time.time()
         cmd = [
-            'bash', '-c',
+            'C:\\Program Files\\Git\\bin\\bash.EXE', '-c',
             'CIJ_ROOT=$(cij_root) && '
             'source $CIJ_ROOT/modules/cijoe.sh && '
             'source %s && '
