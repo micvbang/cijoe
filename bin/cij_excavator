@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""
+    CIJOE Metric Excavator
+"""
+import argparse
+import importlib.util
+import sys
+import os
+import cij.util
+import cij
+
+def trun_tcase_fpaths(root):
+    """Yields absolute paths to testcases below the given 'root'"""
+
+    for path, _, _ in os.walk(root):
+        if path.endswith(".sh"):
+            yield path
+
+def main(args):
+    """
+    Apply the user-provided extractors to the given test-result output
+    """
+
+    args.extractors = []
+    args.output = cij.util.expand_path(args.output)
+
+    if not os.path.exists(os.path.join(args.output, "trun.yml")):
+        cij.err("output: '%r', does not contain 'trun.yml'")
+        return 1
+
+    for ename in args.extractor:                    # Load extractors
+        try:
+            spec = importlib.util.find_spec("cij.extractors.%s" % ename)
+        except ModuleNotFoundError:
+            spec = None
+
+        ename = cij.util.expand_path(ename)
+        if spec is None:
+            spec = importlib.util.spec_from_file_location("", ename)
+        if spec is None:
+            spec = importlib.util.spec_from_file_location("", "%s.py" % ename)
+        if spec is None:
+            cij.err("Cannot find: %r" % ename)
+            return 1
+
+        try:
+            extractor = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(extractor)
+        except FileNotFoundError:
+            cij.err("Cannot find: %r" % ename)
+            return 1
+
+        args.extractors.append(extractor)
+
+    for fpath in trun_tcase_fpaths(args.output):    # Invoke the extractors
+        for extractor in args.extractors:
+            extractor.main(args, fpath)
+
+    return 0
+
+def parse_args():
+    """Parse command-line arguments for cij_excavator"""
+
+    prsr = argparse.ArgumentParser(
+        description="cij_excavator - CIJOE Metric Excavator",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    prsr.register('action', 'custom_extend', cij.util.ExtendAction)
+    prsr.add_argument(
+        "--extractor",
+        help="Name of, or path to, one or more extractor(s)",
+        action="custom_extend",
+        nargs="+",
+        required=True,
+        type=str
+    )
+    prsr.add_argument(
+        "--output",
+        help="Path to test result output directory",
+        required=True
+    )
+
+    return prsr.parse_args()
+
+if __name__ == "__main__":
+    sys.exit(main(parse_args()))
