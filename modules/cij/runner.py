@@ -105,6 +105,8 @@ class TestCase(Runnable):
     descr_long: str = ""
     src_content: str = ""
     log_content: str = ""
+    analysis_log_fpath: str = ""
+    analysis_content: str = ""
 
     @staticmethod
     def tcases_from_dicts(tcase_dicts) -> List[TestCase]:
@@ -508,6 +510,7 @@ def tcase_setup(trun, parent, tcase_fname) -> TestCase:
     case.res_root = os.sep.join([parent.res_root, case.fname])
     case.aux_root = os.sep.join([case.res_root, "_aux"])
     case.log_fpath = os.sep.join([case.res_root, "run.log"])
+    case.analysis_log_fpath = os.path.join(case.res_root, "analysis.log")
 
     case.fpath = os.sep.join([case.res_root, case.fname])
 

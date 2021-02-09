@@ -1,0 +1,4 @@
+global:
+  testcases:
+    xnvme_fioe:
+      iops: "[0;500]k"
