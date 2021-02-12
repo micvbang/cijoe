@@ -133,7 +133,7 @@ def main(args):
 
     trun = cij.runner.trun_from_file(args.trun_fpath)
 
-    rehome(trun.conf["OUTPUT"], args.output, trun)
+    rehome(trun.args.output, args.output, trun)
 
     err = 0
     try:
