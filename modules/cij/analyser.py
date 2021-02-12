@@ -17,7 +17,7 @@ import cij
 from cij.util import rehome
 from cij.errors import CIJError, InvalidRangeError, UnknownUnitError
 
-_units = {
+UNITS = {
     # general
     '': 1,          # no unit
     'B': 1,         # bytes
@@ -58,7 +58,7 @@ class Range:
     _rng_re = re.compile(
         r"^(?P<elower>\[|\])\s*(?P<rstart>-inf|-?\d+(\.\d*)?)\s*;"  # [1.0;
         r"\s*(?P<rend>inf|-?\d+(\.\d*)?)\s*(?P<eupper>\[|\])"       # 1.0]
-        fr"\s*(?P<unit>({'|'.join(_units)}))$"                      # ms
+        fr"\s*(?P<unit>({'|'.join(UNITS)}))$"                      # ms
     )
 
     def __init__(self, rng: str):
@@ -74,13 +74,13 @@ class Range:
                 f"{rng_start} <= {rng_end}"
             )
 
-        if match["unit"] not in _units:
+        if match["unit"] not in UNITS:
             raise UnknownUnitError(
                 f"unexpected unit '{match['unit']}', "
-                f"supported units are: {list(_units.keys())}"
+                f"supported units are: {list(UNITS.keys())}"
             )
 
-        unit_val = _units[match["unit"]]
+        unit_val = UNITS[match["unit"]]
 
         self._rng_start = rng_start
         self._rng_end = rng_end
@@ -124,7 +124,7 @@ class Range:
             output: "500 usec"
         """
 
-        val_conv = val / _units[self._unit]
+        val_conv = val / UNITS[self._unit]
         return f"{val_conv:.3f} {self._unit}"
 
     def __str__(self):
@@ -141,7 +141,7 @@ def to_base_unit(val: float, unit: str = "") -> float:
         val: 500, unit: 'msec'
         output: 0.5 (seconds)
     """
-    unit_scalar = _units.get(unit, None)
+    unit_scalar = UNITS.get(unit, None)
     if not unit_scalar:
         raise UnknownUnitError(f"Unit '{unit}' is not supported")
 
