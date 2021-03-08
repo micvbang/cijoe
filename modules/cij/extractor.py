@@ -6,6 +6,8 @@ import os
 import importlib.util
 from typing import List, Optional, cast
 import dataclasses
+import glob
+import itertools
 
 import cij.runner
 from cij.runner import TestRun, TestCase
@@ -100,14 +102,14 @@ def find_extractors() -> List[ExtractorMeta]:
     except ModuleNotFoundError:
         return []
 
-    assert spec and spec.loader
-    assert isinstance(spec.loader, importlib.abc.Loader)  # help mypy
-    assert isinstance(spec.loader, importlib.abc.ResourceReader)  # help mypy
+    extractor_fpaths = []
+    for spath in spec.submodule_search_locations:
+        fpaths = [
+            f for f in glob.glob(os.path.join(spath, "*.py"))
+            if not f.startswith("__")
+        ]
+        extractor_fpaths = itertools.chain(extractor_fpaths, fpaths)
 
-    extractor_fpaths = [
-        spec.loader.resource_path(k)
-        for k in spec.loader.contents() if not k.startswith('__')
-    ]
 
     emeta = []
     for fpath in extractor_fpaths:
